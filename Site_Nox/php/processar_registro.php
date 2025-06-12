@@ -1,101 +1,73 @@
 <?php
 session_start();
-require_once 'conexao.php';
+require_once _DIR_ . '/conexao.php';
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    die(json_encode(['status' => 'error', 'message' => 'Método não permitido']));
-}
-
-// Sanitização (usando a função do conexao.php)
-$nome = limparInput($_POST['nome'] ?? '');
-$email = limparInput($_POST['email'] ?? '');
-$senha = $_POST['senha'] ?? '';
-$confirmar_senha = $_POST['confirmar_senha'] ?? '';
-$tipo = limparInput($_POST['tipo'] ?? '');
-
-// Validações básicas
-if (empty($nome) || empty($email) || empty($senha) || empty($tipo)) {
-    die(json_encode(['status' => 'error', 'message' => 'Preencha todos os campos']));
-}
-
-if ($senha !== $confirmar_senha) {
-    die(json_encode(['status' => 'error', 'message' => 'As senhas não coincidem']));
-}
-
-if (strlen($senha) < 6) {
-    die(json_encode(['status' => 'error', 'message' => 'Senha deve ter 6+ caracteres']));
-}
-
-// Validações específicas por tipo
-$tipos_permitidos = ['aluno', 'professor', 'admin']; // Adicione outros se necessário
-if (!in_array($tipo, $tipos_permitidos)) {
-    die(json_encode(['status' => 'error', 'message' => 'Tipo de usuário inválido']));
-}
-
-// Dados adicionais por tipo
-$dados_extras = [];
-if ($tipo === 'aluno') {
-    $rm = limparInput($_POST['rm'] ?? '');
-    $etec = limparInput($_POST['etec'] ?? '');
-    
-    if (empty($rm) || empty($etec)) {
-        die(json_encode(['status' => 'error', 'message' => 'RM e ETEC são obrigatórios']));
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+        // Coletar dados
+        $nome = filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_STRING);
+        $tipo = filter_input(INPUT_POST, 'tipo', FILTER_SANITIZE_STRING);
+        $senha = $_POST['senha'];
+        $confirmar_senha = $_POST['confirmar_senha'];
+        
+        // Validações básicas
+        if ($senha !== $confirmar_senha) {
+            throw new Exception('As senhas não coincidem!');
+        }
+        
+        // Preparar query baseada no tipo de usuário
+        if ($tipo === 'aluno') {
+            $rm = filter_input(INPUT_POST, 'rm', FILTER_SANITIZE_STRING);
+            $id_etec = filter_input(INPUT_POST, 'etec', FILTER_VALIDATE_INT);
+            $email = filter_input(INPUT_POST, 'email', FILTER_VALIDATE_EMAIL);
+            
+            if (!$rm || !$id_etec || !$email) {
+                throw new Exception('Dados do aluno incompletos!');
+            }
+            
+            $stmt = $conexao->prepare("INSERT INTO usuarios 
+                (nome, email, senha, tipo, rm, id_etec, ativo) 
+                VALUES (?, ?, ?, ?, ?, ?, 1)");
+            $stmt->execute([
+                $nome, 
+                $email, 
+                password_hash($senha, PASSWORD_BCRYPT), 
+                $tipo, 
+                $rm, 
+                $id_etec
+            ]);
+            
+        } elseif ($tipo === 'professor') {
+            $email_institucional = filter_input(INPUT_POST, 'email_institucional', FILTER_VALIDATE_EMAIL);
+            $email = filter_input(INPUT_POST, 'email', FILTER_VALIDATE_EMAIL);
+            $id_etec = filter_input(INPUT_POST, 'etec', FILTER_VALIDATE_INT);
+            
+            if (!$email_institucional || !$email || !$id_etec) {
+                throw new Exception('Dados do professor incompletos!');
+            }
+            
+            $stmt = $conexao->prepare("INSERT INTO usuarios 
+                (nome, email, senha, tipo, email_institucional, id_etec, ativo) 
+                VALUES (?, ?, ?, ?, ?, ?, 1)");
+            $stmt->execute([
+                $nome, 
+                $email, 
+                password_hash($senha, PASSWORD_BCRYPT), 
+                $tipo, 
+                $email_institucional, 
+                $id_etec
+            ]);
+        } else {
+            throw new Exception('Tipo de usuário inválido!');
+        }
+        
+        $_SESSION['sucesso'] = 'Registro realizado com sucesso!';
+        header('Location: login.php');
+        exit();
+        
+    } catch (Exception $e) {
+        $_SESSION['erro_registro'] = $e->getMessage();
+        header('Location: registro.php');
+        exit();
     }
-    $dados_extras = ['rm' => $rm, 'id_etec' => $etec];
-} 
-elseif ($tipo === 'professor') {
-    $email_institucional = limparInput($_POST['email_institucional'] ?? '');
-    if (empty($email_institucional)) {
-        die(json_encode(['status' => 'error', 'message' => 'E-mail institucional obrigatório']));
-    }
-    $dados_extras = ['email_institucional' => $email_institucional];
 }
-
-// Verificar se email existe
-try {
-    $stmt = $conexao->prepare("SELECT id FROM usuarios WHERE email = ?");
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-    
-    if ($stmt->get_result()->num_rows > 0) {
-        die(json_encode(['status' => 'error', 'message' => 'E-mail já cadastrado']));
-    }
-} catch (Exception $e) {
-    die(json_encode(['status' => 'error', 'message' => 'Erro ao verificar e-mail']));
-}
-
-// Registrar usuário
-try {
-    $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
-    $campos = ['nome', 'email', 'senha', 'tipo'];
-    $valores = [$nome, $email, $senha_hash, $tipo];
-    $tipos = "ssss"; // string para bind_param
-
-    // Adiciona campos extras
-    foreach ($dados_extras as $campo => $valor) {
-        $campos[] = $campo;
-        $valores[] = $valor;
-        $tipos .= is_int($valor) ? "i" : "s";
-    }
-
-    $query = "INSERT INTO usuarios (" . implode(", ", $campos) . ") 
-              VALUES (" . str_repeat("?,", count($campos)-1) . "?)";
-    
-    $stmt = $conexao->prepare($query);
-    $stmt->bind_param($tipos, ...$valores);
-    
-    if ($stmt->execute()) {
-        echo json_encode([
-            'status' => 'success', 
-            'message' => 'Registro realizado! Faça login'
-        ]);
-    } else {
-        throw new Exception($stmt->error);
-    }
-} catch (Exception $e) {
-    die(json_encode([
-        'status' => 'error',
-        'message' => 'Erro no registro: ' . $e->getMessage()
-    ]));
-}
-?>

@@ -4,23 +4,29 @@ $dbname = 'banco_nox';
 $username = 'root';
 $password = '';
 
-// Conecta ao banco e define a variável $conn
+// Configuração de relatório de erros
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
 try {
-    $conn = new mysqli($host, $username, $password, $dbname);
+    $conexao = new mysqli($host, $username, $password, $dbname);
     
-    if ($conn->connect_error) {
-        throw new Exception("Erro de conexão: " . $conn->connect_error);
+    // Definir charset para evitar problemas de codificação
+    $conexao->set_charset("utf8mb4");
+    
+    // Verificação adicional da conexão
+    if ($conexao->connect_errno) {
+        throw new Exception("Falha na conexão: " . $conexao->connect_error);
     }
-    
-    $conn->set_charset("utf8mb4");
     
 } catch (Exception $e) {
     error_log("Erro de banco: " . $e->getMessage());
-    die("Erro ao conectar. Tente mais tarde.");
+    die("Erro ao conectar ao banco de dados. Por favor, tente novamente mais tarde.");
 }
 
 // Função para limpar inputs
-function limparInput($dado) {
-    return htmlspecialchars(trim($dado), ENT_QUOTES, 'UTF-8');
+if (!function_exists('limparInput')) {
+    function limparInput($dado) {
+        return htmlspecialchars(strip_tags(trim($dado)), ENT_QUOTES, 'UTF-8');
+    }
 }
 ?>

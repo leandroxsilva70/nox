@@ -1,0 +1,86 @@
+/* ESTILOS ADICIONAIS */
+        
+/* Seção Hero */
+.hero {
+    background: linear-gradient(rgba(26, 26, 46, 0.9), rgba(22, 33, 62, 0.9)), 
+                url('../imagem_logotipo/background.jpg') center/cover no-repeat;
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.hero-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* Carrossel de Recursos */
+.features {
+    max-width: 1200px;
+    margin: 0 auto 3rem;
+    padding: 0 1rem;
+}
+
+.feature-slide {
+    background: var(--darker-bg);
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 0 1rem;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+.feature-slide:hover {
+    transform: translateY(-5px);
+}
+
+.feature-icon {
+    font-size: 2.5rem;
+    color: var(--accent-yellow);
+    margin-bottom: 1rem;
+}
+
+/* Seção de Chamada para Ação */
+.cta {
+    text-align: center;
+    padding: 3rem 1rem;
+    background: var(--card-bg);
+    border-radius: 12px;
+    max-width: 1200px;
+    margin: 0 auto 2rem;
+}
+
+/* Estilos para o carrossel */
+.features-carousel {
+    cursor: grab;
+    user-select: none;
+}
+
+.features-carousel:active {
+    cursor: grabbing;
+}
+
+.feature-slide {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.slick-active .feature-slide {
+    transform: scale(1.05);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+    z-index: 1;
+}
+
+/* Remove o foco padrão do Slick */
+.slick-slide:focus {
+    outline: none;
+}
+
+/* Esconde os controles padrão do Slick */
+.slick-dots, .slick-arrow {
+    display: none !important;
+}
